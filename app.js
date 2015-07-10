@@ -1,4 +1,5 @@
-var app = require('express')();
+var express = require('express');
+var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var mongoose = require('mongoose');
@@ -8,7 +9,8 @@ app.get('/', function(req, res){
   res.sendfile('views/index.html');
 });
 
-//app.use(express.static(__dirname + '/public'));
+app.use(express.static(__dirname + '/public'));
+app.use(express.static(__dirname + '/javascript'));
 
 //mongodb
 var Schema = mongoose.Schema; //スキーマ取得
@@ -80,11 +82,18 @@ io.on('connection', function(socket){
 
 	socket.on("deleteDB", function() {
 		socket.emit('dropDB');
+		User.remove({  __v : 0 }, function(err, result){
+    			if (err) {
+        			res.send({'error': 'An error has occurred - ' + err});
+    			} else {
+        			console.log('UserRemoveSuccess: ' + result + ' document(s) deleted');
+    			}
+ 		});
 		Chat.remove({  __v : 0 }, function(err, result){
     			if (err) {
         			res.send({'error': 'An error has occurred - ' + err});
     			} else {
-        			console.log('Success: ' + result + ' document(s) deleted');
+        			console.log('CharRemoveSuccessSuccess: ' + result + ' document(s) deleted');
     			}
  		});
 	})

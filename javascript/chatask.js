@@ -1,12 +1,18 @@
 var socketio = io.connect('http://localhost:3000');
 
 		socketio.on("connect", function(data) {
-			socketio.emit("updateMessage");
+			addRoomInfo("入室したいルーム名とユーザー名を入力してください。");
 		});
 
-		socketio.on("recieveMessage", function(data) {
-			addMessage(data);
-		});
+		function enterRoom() {
+			var userName = $('#name_input').val();
+			var roomName = $('#room_input').val();
+			socketio.emit("enter",{
+				userName: userName,
+				roomName: roomName
+			});
+			addRoomInfo(userName + "さんは" + roomName + "に入室しました。");
+		}
 
 		socketio.on("openMessage", function(dataArray) {
 			if(dataArray.length == 0) { return; }
@@ -18,22 +24,47 @@ var socketio = io.connect('http://localhost:3000');
 			}
 		});
 
+		socketio.on("recieveMessage", function(data) {
+			addMessage(data);
+		});
+
 		socketio.on("dropDB", function() {
 			$("#message").empty();
+			$("#member").empty();
 		})
 
+ 		socketio.on("roomList", function(roomList){
+ 			if (roomList) {
+ 				$('#roomList').text("");
+				for (var roomName in roomList) {
+ 					var message =  roomName + "：" + roomList[roomName] + "人";
+ 					var domMeg = document.createElement('div');
+ 					domMeg.innerHTML = message;
+ 					$('#roomList').append(domMeg);
+ 				}
+ 			}
+ 		});
+
+ 		socketio.on("port", function(userCount) {
+ 			var message = "（現在" + userCount  + "人がオンライン）";
+ 			updateOnlineUserCount(message);
+ 		});
+
+ 		socketio.on("roomMember", function(userArray) {
+ 			if(userArray.length == 0) {
+ 				return;
+ 			} else {
+				$('#roomMember').empty();
+				userArray.forEach(function(data) {
+					var user =  data.name;
+ 					var domMeg = document.createElement('div');
+ 					domMeg.innerHTML = user;
+ 					$('#member').append(domMeg);
+				});
+			}
+ 		});
+
 		socketio.on("disconnect", function(data) { });
-
-		function start(name) {
-			$('#name_input').val(name);
-			socketio.emit("connected", name);
-		}
-
-		function enterRoom() {
-			socket.emit("enter",{
-
-			});
-		}
 
 		function sendMessage() {
 			var now = new Date();
@@ -43,8 +74,6 @@ var socketio = io.connect('http://localhost:3000');
 			if(nowMin < 10){ nowMin = "0"+nowMin; }
 			socketio.emit("sendMessage", {
 				message: $('#message_input').val(),
-				name: $('#name_input').val(),
-				date: now.getFullYear() + "/" + (now.getMonth()+1) + "/" + now.getDay() + " " + nowHour + ":" + nowMin
 			});
 			$('#message_input').val('').focus();
 		}
@@ -55,25 +84,20 @@ var socketio = io.connect('http://localhost:3000');
 			$('#message').append(domMeg);
 		}
 
+		function addRoomInfo(info) {
+			var domMeg = document.createElement('div');
+			domMeg.innerHTML = info;
+			$('#roomInfo').text("");
+			$('#roomInfo').append(domMeg);
+		}
+
+		function updateOnlineUserCount(info) {
+			var domMeg = document.createElement('div');
+			domMeg.innerHTML = info;
+			$('#onlineUserCount').text("");
+			$('#onlineUserCount').append(domMeg);
+		}
+
 		function deleteDB() {
 			socketio.emit("deleteDB");
 		}
-
-		function roomPut() {
-
-		}
-
-		//main
-		var myName = Math.floor(Math.random()*100) + "さん";
-		var now = new Date();
-		var nowHour = now.getHours();
-		var nowMin = now.getMinutes();
-		if(nowHour < 10){ nowHour = "0"+nowHour; }
-		if(nowMin < 10){ nowMin = "0"+nowMin; }
-		var data =  {
-			message: "貴方は" + myName + "として入室しました",
-			name: '管理者',
-			date: now.getFullYear() + "/" + (now.getMonth()+1) + "/" + now.getDay() + " " + nowHour + ":" + nowMin
-		}
-		addMessage(data);
-		start(myName);
