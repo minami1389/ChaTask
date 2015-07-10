@@ -44,7 +44,7 @@ div.contain {
 			padding: 10px;
 		}
 
-		div#member {
+		div#memberList {
 			margin-top: 10px;
 			margin-bottom: 40px;
 			height: 300px;
@@ -55,5 +55,5 @@ div.contain {
 			padding: 10px;
 		}
 
-		p { display: inline; }
+		p.inline { display: inline; }
 	</style>

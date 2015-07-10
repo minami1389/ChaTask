@@ -12,48 +12,48 @@ app.get('/', function(req, res){
 app.use(express.static(__dirname + '/public'));
 app.use(express.static(__dirname + '/javascript'));
 
+
 //mongodb
-var Schema = mongoose.Schema; //スキーマ取得
+var Schema = mongoose.Schema;
 
-var ChatSchema = new Schema({  //目的のスキーマを作成
- 	message: String,
-      name: String,
-      date: String,
-      room: String
-});
-mongoose.model('Chat', ChatSchema);  //スキーマからモデル作成
-var Chat = mongoose.model('Chat');  //モデルできあがり
+	//Chat
+	var ChatSchema = new Schema({
+	 	message: String,
+	      name: String,
+	      date: String,
+	      room: String
+	});
+	mongoose.model('Chat', ChatSchema);
+	var Chat = mongoose.model('Chat');
 
-var UserSchema = new Schema({  //ユーザーの名前とルーム名を紐づけるもの
- 	name: String,
- 	room: String
-});
-mongoose.model('User', UserSchema);  //スキーマからモデル作成
-var User = mongoose.model('User');  //モデルできあがり
+	//Member
+	var MemberSchema = new Schema({  //ユーザーの名前とルーム名を紐づけるもの
+	 	name: String,
+	 	room: String
+	});
+	mongoose.model('Member', MemberSchema);
+	var Member = mongoose.model('Member');
 
 mongoose.connect('mongodb://localhost/chatask'); //mongoDBに接続
 
 
 //socketio
-var userCount = 0;
-var roomList = new Object();
-var jsonBoth = {};
-var userList = new Object(); //ユーザーの名前とsocketidを紐づけるもの
+var onlineUserCount = 0;
+var roomList = new Object();		//[roomName] = roomUserCount
+var memberList = new Object(); 	//[userName] = socketid
 
 io.on('connection', function(socket){
 	console.log('a user connected');
 
-	userCount++;
-	io.sockets.emit("port", userCount);
+	onlineUserCount++;
+	io.sockets.emit("updateOnlineUserCount", onlineUserCount);
 
-	updateRoomList(roomList);
-	function updateRoomList(roomList) {
-		if(roomList) { io.sockets.emit("roomList", roomList); }
-	}
+	updateRoomList();
 
 	socket.on("enter", function(data) {
 		socket.name = data.userName;
 		var roomName = data.roomName;
+		memberList[socket.name] = socket.id;
 		if (!roomList[roomName]) {
 			createRoom(roomName);
 		} else if(roomList[roomName]) {
@@ -82,11 +82,11 @@ io.on('connection', function(socket){
 
 	socket.on("deleteDB", function() {
 		socket.emit('dropDB');
-		User.remove({  __v : 0 }, function(err, result){
+		Member.remove({  __v : 0 }, function(err, result){
     			if (err) {
         			res.send({'error': 'An error has occurred - ' + err});
     			} else {
-        			console.log('UserRemoveSuccess: ' + result + ' document(s) deleted');
+        			console.log('MemberRemoveSuccess: ' + result + ' document(s) deleted');
     			}
  		});
 		Chat.remove({  __v : 0 }, function(err, result){
@@ -99,8 +99,16 @@ io.on('connection', function(socket){
 	})
 
 	socket.on("disconnect", function() {
-		userCount--;
+		onlineUserCount--;
 		var roomName = socket.roomName;
+		Member.remove({  name : socket.name }, function(err, result){
+    			if (err) {
+        			res.send({'error': 'An error has occurred - ' + err});
+    			} else {
+    				updateRoomMember();
+    			}
+ 		});
+ 		delete memberList[socket.name];
 		if (roomName) {
 			roomList[roomName]--;
 			socket.leave(roomName);
@@ -111,8 +119,8 @@ io.on('connection', function(socket){
 			});
 			updateRoomList(roomList);
 		}
-		console.log("ウェブサイトから退室：現在" + userCount + "人");
-		io.sockets.emit("port", userCount);
+		console.log("ウェブサイトから退室：現在" + onlineUserCount + "人");
+		io.sockets.emit("updateOnlineUserCount", onlineUserCount);
 	});
 
 	function nowDate() {
@@ -144,14 +152,25 @@ io.on('connection', function(socket){
 			});
   		});
 		updateRoomList(roomList);
-		var user = new User();
-		user.name = socket.name;
-		user.room = socket.roomName;
-		user.save(function(err) {
-			if(err) { console.log(err); }
+		var member = new Member();
+		member.name = socket.name;
+		member.room = socket.roomName;
+		member.save(function(err) {
+			if(err) {
+				console.log(err);
+			} else {
+				updateRoomMember();
+			}
 		});
-		User.find({room:socket.roomName},function(err, docs) {
-  			io.sockets.to(roomName).emit("roomMember", docs);
+	}
+
+	function updateRoomList() {
+		if(roomList) { io.sockets.emit("updateRoomList", roomList); }
+	}
+
+	function updateRoomMember() {
+		Member.find({room:socket.roomName},function(err, docs) {
+  					io.sockets.to(socket.roomName).emit("updateRoomMember", docs);
   		});
 	}
 
