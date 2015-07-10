@@ -1,0 +1,16 @@
+{
+  "name": "express-sample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app"
+  },
+  "dependencies": {
+    "connect-mongo": "^0.8.1",
+    "ejs": "*",
+    "express": "*",
+    "express-session": "^1.11.3",
+    "body-parser": "*",
+    "mongoose": "*"
+  }
+}
